@@ -1,8 +1,8 @@
--- -*- coding: utf-8 -*-
+s-- -*- coding: utf-8 -*-
 newPackage(
     "ExteriorExtensions",
-    Version => "0.1",
-    Date => "September 24, 2022",
+    Version => "0.2",
+    Date => "April 16, 2023",
     Authors => {
 	{Name => "Luke Oeding", Email => "oeding@auburn.edu", HomePage => "http://webhome.auburn.edu/~lao0004/"}},
     Headline => "Builds a graded algebra that equivariantly extends the Lie
@@ -81,7 +81,8 @@ buildAlgebra(ZZ,ZZ,Symbol,Ring) := (pow, nvars,e, KK) ->(
   star2 := u ->(-1)^((degree u)#0)* diff(u, delta); -- the Hodge star
   extensionAlg.star = star2;
   lDim := nvars^2-1; -- the dimension of sl_n
-  basisCartanSln := apply(nvars-1, i-> ((-1_KK)^i)*diagonalMatrix ( apply(i,k-> 0_KK)|{1_KK,-1}|apply(nvars-i-2, k-> 0_KK)));
+  --basisCartanSln := apply(nvars-1, i-> ((-1_KK)^i)*diagonalMatrix ( apply(i,k-> 0_KK)|{1_KK,-1}|apply(nvars-i-2, k-> 0_KK))); -- there is an extra (-1)^i
+  basisCartanSln := apply(nvars-1, i-> diagonalMatrix ( apply(i,k-> 0_KK)|{1_KK,-1}|apply(nvars-i-2, k-> 0_KK))); -- there is an extra (-1)^i
   basisN1 := flatten for i to nvars -1 list for j from i+1 to nvars -1 list (
     zm := mutableMatrix apply(nvars,j-> apply(nvars,i-> 0));
     tmp := zm;
@@ -114,13 +115,13 @@ buildAlgebra(ZZ,ZZ,Symbol,Ring) := (pow, nvars,e, KK) ->(
     s := flatten entries (matrix({basis1E})*mat);
     sum(nvars,i-> sub(T,basis1E_i=>s_i)) +(-nvars+(degree T)_0)*T );
   bracketExtExt := (t1, t2) -> (t1*t2);
+  bracketExtExtDual := (u, us) ->  makeTraceless(
+    -diff(transpose diff(matrix{ basis1E}, u),diff(matrix{ basis1E}, star2 us)) ); -- put an extra scalar here for the 2,4 case ... see if it works for the others
 -- took out transpose?
-  bracketExtExtDual := (u, us) -> pow* makeTraceless(
-    -diff(transpose diff(matrix{ basis1E}, u),diff(matrix{ basis1E}, star2 us))); -- put an extra scalar here for the 2,4 case ... see if it works for the others
--- took out transpose?
-  bracketExtDualExt := (us, u) -> pow* makeTraceless(
+  bracketExtDualExt := (us, u) -> (-1)*transpose makeTraceless(
     -diff(transpose diff(matrix{ basis1E}, star2 us),diff(matrix{ basis1E}, u))); -- put an extra scalar here for the 2,4 case ... see if it works for the others
-  bracketExtDualExtDual := (t1, t2) -> star2( (star2 t1)*(star2 t2)); -- do we need a (-1)^degree sign?
+  bracketExtDualExtDual := (t1, t2) ->  star2( (star2 t1)*(star2 t2)); -- do we need a (-1)^degree sign?
+ -- took out (-1)... (-1)*
   -- check if these are symmetric or skew-symmetric? Notice that u*v is skew-symmetric for odd forms, and symmetric for even forms.
   -- CHECK if this agrees with the 2- graded case: bracket11 = (t1,t2) -> (-2/pow)*( matrix apply(nvars, j-> apply(nvars, i-> diff(diff(e_i,delta) , t2* diff(e_j, t1) + (-1)^(pow-1)* t1* diff(e_j, t2))))
   ------------------------------------------------------------
@@ -132,7 +133,7 @@ buildAlgebra(ZZ,ZZ,Symbol,Ring) := (pow, nvars,e, KK) ->(
   bracket2(exteriorAlg,Matrix) := (T,A) -> -bracket0Ext(A,T); -- make it skew-commuting -- we could change this later.
   bracket2(exteriorAlg,exteriorAlg) := (S,T) ->(
     if  S == 0 or  T  == 0  then return 0;  -- zero
-    if (degree S)#0 + (degree T)#0 <nvars then return S*T;
+    if (degree S)#0 + (degree T)#0 <nvars then return bracketExtExt(S,T);
     if (degree S)#0 + (degree T)#0 ==nvars and (degree S)#0 <= (degree T)#0 then return bracketExtExtDual(S,T);
     if (degree S)#0 + (degree T)#0 ==nvars and (degree S)#0 > (degree T)#0 then return bracketExtDualExt(S,T);
     if (degree S)#0 >nvars/2 or (degree T)#0 >nvars/2 then return bracketExtDualExtDual(S,T);
@@ -147,11 +148,12 @@ buildAlgebra(ZZ,ZZ,Symbol,Ring) := (pow, nvars,e, KK) ->(
   Ad(exteriorAlg) := T->(
       tGrade := findGrade2 T; -- changed order of the double loop and put in some transposes...
      matrix for i from 0 to grade-1 list( for j to grade-1 list(
-  	    if (tGrade + j)%grade == i then
+  	    if (tGrade + j)%grade == i then(
   	        if i==0 then sub( transpose matrix apply(basisG#j,
-               myForm -> flatten entries contract(matrix2LieAlg2(bracket2(T,myForm)), basis(1,LieAlg)) ) , KK)
+                 myForm -> flatten entries contract(matrix2LieAlg2(bracket2(T,myForm)), basis(1,LieAlg)) ) , KK)
   	        else  ( sub( transpose matrix apply(basisG#j,
-               myForm -> flatten entries contract(matrix {basisG#i}, bracket2(T,myForm))),KK) )
+                 myForm -> flatten entries contract(matrix {basisG#i}, bracket2(T,myForm))),KK) )
+     )
   	    else ( transpose matrix map (KK^(#basisG#j), KK^(#basisG#i), 0) )
   ))
   );
@@ -182,7 +184,7 @@ buildAlgebra(ZZ,ZZ,Symbol,Ring) := (pow, nvars,e, KK) ->(
       tmp:=rank(tt); if rtmp !=tmp then (rtmp=tmp; tmp) else break)
   );
   extensionAlg.ranks = ranks2;
-  blockNames :=  flatten(apply(grade,i->  apply(grade,j-> {i,j})));
+  blockNames :=  flatten(apply(grade,j->  apply(grade,i-> {i,j})));
   blockRank := tt -> apply(blockNames, xx -> rank getBlock2(xx#0,xx#1,tt));
   -- Input:
   -- matrix mat
@@ -269,6 +271,8 @@ Headline
 Description
   Text
     A ring of type ExteriorExtension is built by the command {\tt buildAlgebra}. The menu lists the ways to interact with an ExteriorExtension.
+  Example
+    ea = buildAlgebra(4,8);
 
 Subnodes
   LieAlgebra
@@ -337,7 +341,7 @@ Description
   Example
     ea24 = buildAlgebra(2,4,QQ)
   Text
-    We have set the algebra \(\mathfrak{sl}_2(\mathbb C) \oplus \bigwedge{2}\mathbb{C}\). The f
+    We have set the algebra \(\mathfrak{sl}_2(\mathbb C) \oplus \bigwedge^{2}\mathbb{C}\). The functions associated to this algebra are stored by the symbol we assign the output. 
     Let's see if the bilinear bracket satisfies the Lie algebra axioms at least at random points in each graded piece of the algebra:
     i.e. we check skew-commutativity and the Jacobi identity.
   Example
@@ -366,11 +370,13 @@ Description
     caveat: It's important to make the matrix traceless, otherwise the jacobi identity doesn't work.
 
   Example
-    K = ea24.KillingMatrix();
+    K = ea24.KillingMatrix()
     rank K
   Text
-    The Killing matrix is \(21 \times 21\) and non-degenerate. The only possiblity is \(\mathfrak{sp}_6\).
+    The Killing matrix is \(21 \times 21\) and non-degenerate. The only possibility is \(\mathfrak{sp}_6\).
     One checks that the Killing matrix has a full set of real eigenvectors, so the isomorphism of \(\mathfrak{a}\) and \(\mathfrak{sp}_6\) holds over the real numbers.
+  Example
+   toList eigenvalues K 
 
   Example
     ea36 = buildAlgebra(3,6,QQ)
@@ -767,7 +773,7 @@ Headline
 
 Description
   Text
-    Let's build a 7-graded algebra and see the bases of each piece getting converted to the symbolic elements in the Lie algebra.
+    Let's build a 7-graded algebra and see the bases of each piece getting converted to the symbolic ements in the Lie algebra.
 
   Example
     ea = buildAlgebra(3,7,QQ);
@@ -783,3 +789,121 @@ Description
 end
 restart
 loadPackage"ExteriorExtensions"
+viewHelp"ExteriorExtensions"
+ea24 = buildAlgebra(2,4,e,QQ)
+A = ea24.ad(e_0*e_1 + e_2*e_3)
+round\ toList eigenvalues A
+rank A
+
+B = ea24.ad(e_0*e_2 + e_1*e_3);
+0*ea24.bracket(A,B)== ea24.bracket(A,B)
+
+ea24.bracket(A, ea24.ad(e_0*e_1))
+ ea24.prettyBlockRanks A
+
+B = ea24.ad(e_0*e_2 + e_1*e_3);
+0*ea24.bracket(A,B)== ea24.bracket(A,B)
+
+p = e_0*e_1 + e_2*e_3
+q = e_0*e_2 + e_1*e_3
+ea24.bracket(e_0*e_1 + e_2*e_3,e_0*e_2 + e_1*e_3)
+ea24.bracket(ea24.ad(p),ea24.ad(q))
+ea24.ad(ea24.bracket(p,q))
+
+L = apply(ea24.bases#1 , xx-> sub( ea24.bracket( xx,p), QQ))
+R = QQ[x_0.. x_5]
+decompose ideal flatten entries sum(6, i-> sub(L_i, R)*x_i)
+first ea24.bases#1 + last ea24.bases#1
+
+restart
+
+loadPackage"ExteriorExtensions"
+ea48 = buildAlgebra(4,8,e,QQ);
+    A = makeTraceless random(QQ^8,QQ^8);
+    B = makeTraceless random(QQ^8,QQ^8);
+    ea48.bracket(A,B) + ea48.bracket(B,A)
+    ea48.ad(ea48.bracket(A,B)) - ea48.bracket(ea48.ad(A),ea48.ad(B))
+
+    a = random(4, ea48.appendage)
+    b = random(4, ea48.appendage)
+    ea48.bracket(a,b) + ea48.bracket(b,a)
+    ea48.ad(ea48.bracket(a,b)) - ea48.bracket(ea48.ad(a),ea48.ad(b))
+
+    ea48.bracket(A,b) + ea48.bracket(b,A)
+    ea48.ad(ea48.bracket(A,b)) - ea48.bracket(ea48.ad(A),ea48.ad(b))
+time K = ea48.KillingMatrix()
+rank K
+
+matrix apply(7, i-> apply(7, j-> 2*K_(i,j)/K_(j,j)))
+K - transpose K -- symmetric
+rank K  -- non-degenerate
+kev = toList eigenvalues K
+#kev
+time stm0 =  for xx in  ea48.bases#0 list ea48.ad(xx);
+time stm1 =  for xx in  ea48.bases#1 list ea48.ad(xx);
+unique apply(stm0, xx ->  source xx)
+unique apply(stm0, xx ->  target xx)
+M0 = matrix apply(stm0, xx-> apply(stm0, yy->  trace(xx*yy)))
+M01 = matrix apply(stm0, xx-> apply(stm1, yy->  trace(xx*yy)))
+M1 = matrix apply(stm1, xx-> apply(stm1, yy->  trace(xx*yy)))
+eigenvalues M1
+
+-- find a cartan subalgebra? It's strange that if you pick the cartan in sl_8, perhaps the roots have different angles than if you pick a cartan in the other part?
+apply( ea48.bases#1, xx-> apply( ea48.bases#1, yy-> ea48.bracket(xx,yy)))
+
+time stm1 =  for xx in  ea48.bases#1 list ea48.ad(xx);
+--- maximal abelian subalgebra such that the adjoint operators are diagonalizable. 
+L = stm1_(toList (0..8));
+ apply( L, xx-> apply( L, yy-> ea48.bracket(xx,yy) ))
+apply(9, i-> eigenvalues L#i) -- these are all nilpotent!
+Ap = ea48.ad(first ea48.bases#1);
+ for xx in eigenvalues Ap list if not round(abs(xx)) ==0 then xx else continue
+rank Ap
+
+list2E = L-> sum(L, l-> product(l, i-> e_(i-1)))
+
+a0 = list2E {{1,2,3,4},{5,6,7,8}}
+A0 = ea48.ad(a0);
+# for xx in eigenvalues A0 list if not round(abs(xx)) ==0 then xx else continue
+rank A0
+
+-- for examples
+restart
+loadPackage"ExteriorExtensions"
+ea48 = buildAlgebra(4,8,e,QQ);
+
+list2E = L-> sum(L, l-> product(l, i-> e_(i-1)))
+aa = {{{1,2,3,4},{5,6,7,8}}, {{1,3,5,7},{6,8,2,4}},{{1,5,6,2},{8,4,7,3}},
+{{1,6,8,3},{4,7,5,2}},{{1,8,4,5},{7,2,6,3}},{{1,4,7,6},{2,3,8,5}},{{1,7,2,8},{3,5,4,6}}}
+
+for i to length(aa)-1 do(
+adList_i = ea48.ad(list2E aa_i);
+print(# for xx in eigenvalues adList_i list if not round(abs(xx)) ==0 then xx else continue,rank adList_i);
+)
+
+netList apply(7, i-> apply(7, j-> ea48.bracket(adList_i,adList_j) ))
+
+
+    A = makeTraceless random(QQ^8,QQ^8);
+    B = makeTraceless random(QQ^8,QQ^8);
+    ea48.bracket(A,B) + ea48.bracket(B,A)
+    ea48.ad(ea48.bracket(A,B)) - ea48.bracket(ea48.ad(A),ea48.ad(B))
+
+    a = random(4, ea48.appendage);
+    b = random(4, ea48.appendage);
+    ea48.bracket(a,b) + ea48.bracket(b,a)
+    ea48.ad(ea48.bracket(a,b)) - ea48.bracket(ea48.ad(a),ea48.ad(b))
+
+    ea48.bracket(A,b) + ea48.bracket(b,A)
+    ea48.ad(ea48.bracket(A,b)) - ea48.bracket(ea48.ad(A),ea48.ad(b))
+
+
+
+time stm0 =  for xx in  ea48.bases#0 list ea48.ad(xx);
+L0 = stm0_(toList (0..6));
+ apply( L0, xx-> apply( L0, yy-> ea48.bracket(xx,yy) ))
+
+L0 = stm0_(toList (0..7));
+netList apply( L0, xx-> apply( L0, yy-> ea48.bracket(xx,yy) == 0 ))
+time K = ea48.KillingMatrix()
+rank K
