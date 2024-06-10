@@ -1,8 +1,8 @@
 s-- -*- coding: utf-8 -*-
 newPackage(
     "ExteriorExtensions",
-    Version => "0.2",
-    Date => "April 16, 2023",
+    Version => "0.3",
+    Date => "December 18, 2023",
     Authors => {
 	{Name => "Luke Oeding", Email => "oeding@auburn.edu", HomePage => "http://webhome.auburn.edu/~lao0004/"}},
     Headline => "Builds a graded algebra that equivariantly extends the Lie
@@ -78,10 +78,12 @@ buildAlgebra(ZZ,ZZ,Symbol,Ring) := (pow, nvars,e, KK) ->(
   edim := binomial(nvars,pow); -- the dimension of a_1
   delta := (basis(nvars, exteriorAlg))_(0,0); -- the volume form
   basis1E := gens exteriorAlg;
-  star2 := u ->(-1)^((degree u)#0)* diff(u, delta); -- the Hodge star
-  extensionAlg.star = star2;
+  ---star2 := u ->(-1)^((degree u)#0)* diff(u, delta); -- this is not the Hodge star - sign was wrong.
+  setComplement:= (I,n) ->  toList(set(0..(n-1)) - set I);
+  indexStar := I-> det id_(ZZ^nvars)_(flatten {I,setComplement(I,nvars)});
+  star2function:= (IN)-> sum(subsets(nvars,first degree IN), aa -> contract(product(aa, i-> exteriorAlg_i),IN) * (indexStar aa)*product(setComplement(aa,nvars), i-> exteriorAlg_i));
+  extensionAlg.star = star2function;
   lDim := nvars^2-1; -- the dimension of sl_n
-  --basisCartanSln := apply(nvars-1, i-> ((-1_KK)^i)*diagonalMatrix ( apply(i,k-> 0_KK)|{1_KK,-1}|apply(nvars-i-2, k-> 0_KK))); -- there is an extra (-1)^i
   basisCartanSln := apply(nvars-1, i-> diagonalMatrix ( apply(i,k-> 0_KK)|{1_KK,-1}|apply(nvars-i-2, k-> 0_KK))); -- there is an extra (-1)^i
   basisN1 := flatten for i to nvars -1 list for j from i+1 to nvars -1 list (
     zm := mutableMatrix apply(nvars,j-> apply(nvars,i-> 0));
@@ -116,11 +118,11 @@ buildAlgebra(ZZ,ZZ,Symbol,Ring) := (pow, nvars,e, KK) ->(
     sum(nvars,i-> sub(T,basis1E_i=>s_i)) +(-nvars+(degree T)_0)*T );
   bracketExtExt := (t1, t2) -> (t1*t2);
   bracketExtExtDual := (u, us) ->  makeTraceless(
-    -diff(transpose diff(matrix{ basis1E}, u),diff(matrix{ basis1E}, star2 us)) ); -- put an extra scalar here for the 2,4 case ... see if it works for the others
+    -diff(transpose diff(matrix{ basis1E}, u),diff(matrix{ basis1E}, star2function us)) ); -- put an extra scalar here for the 2,4 case ... see if it works for the others
 -- took out transpose?
   bracketExtDualExt := (us, u) -> (-1)*transpose makeTraceless(
-    -diff(transpose diff(matrix{ basis1E}, star2 us),diff(matrix{ basis1E}, u))); -- put an extra scalar here for the 2,4 case ... see if it works for the others
-  bracketExtDualExtDual := (t1, t2) ->  star2( (star2 t1)*(star2 t2)); -- do we need a (-1)^degree sign?
+    -diff(transpose diff(matrix{ basis1E}, star2function us),diff(matrix{ basis1E}, u))); -- put an extra scalar here for the 2,4 case ... see if it works for the others
+  bracketExtDualExtDual := (t1, t2) ->  star2function( (star2function t1)*(star2function t2)); -- do we need a (-1)^degree sign?
  -- took out (-1)... (-1)*
   -- check if these are symmetric or skew-symmetric? Notice that u*v is skew-symmetric for odd forms, and symmetric for even forms.
   -- CHECK if this agrees with the 2- graded case: bracket11 = (t1,t2) -> (-2/pow)*( matrix apply(nvars, j-> apply(nvars, i-> diff(diff(e_i,delta) , t2* diff(e_j, t1) + (-1)^(pow-1)* t1* diff(e_j, t2))))
@@ -521,6 +523,8 @@ Description
     B = last ea.bases#1
     C = ea.bracket(A,B)
 
+
+
 ///
 
 doc ///
@@ -601,7 +605,7 @@ Description
     The matrices constructed by this can get very large, and take a long time to compute. So we store this object as a function that we call with no input so that we don't compute it if it is not required.
 
   Example
-    PrintWidth = 100;
+    PrintWidth = 400;
     ea = buildAlgebra(3,6,QQ);
     K = ea.KillingMatrix()
     rank K
@@ -648,7 +652,7 @@ Description
   Example
     ea = buildAlgebra(3,6,e,QQ);
     A = ea.ad(first ea.bases#1);
-    printWidth = 100;
+    printWidth = 300;
     ea.getBlock(1,1,A)
     ea.getBlock(1,0,A)
 
@@ -719,9 +723,10 @@ Description
     Let's build a 7-graded algebra and find the grade for several elements
 
   Example
-    extensionAlg = buildAlgebra(3,7,e,QQ);
-    extensionAlg.findGrade (e_0*e_1)
-    extensionAlg.findGrade (e_0*e_1*e_2*e_3)
+    extensionAlg = buildAlgebra(3,7);
+    E = extensionAlg.appendage;
+    extensionAlg.findGrade (E_0*E_1)
+    extensionAlg.findGrade (E_0*E_1*E_2*E_3)
 
 ///
 
@@ -737,7 +742,7 @@ Description
     Let's build a 7-graded algebra and see the bases of each piece
 
   Example
-    extensionAlg = buildAlgebra(3,7,e,QQ);
+    extensionAlg = buildAlgebra(3,7);
     extensionAlg.bases#0
     extensionAlg.bases#1
     extensionAlg.bases#3
@@ -907,3 +912,35 @@ L0 = stm0_(toList (0..7));
 netList apply( L0, xx-> apply( L0, yy-> ea48.bracket(xx,yy) == 0 ))
 time K = ea48.KillingMatrix()
 rank K
+
+restart
+loadPackage("ExteriorExtensions")
+    ea = buildAlgebra(3,9)
+    E = ea.appendage
+    A = makeTraceless random(QQ^9,QQ^9);
+    B = makeTraceless random(QQ^9,QQ^9);
+    ea.bracket(A,B) + ea.bracket(B,A)
+    ea.ad(ea.bracket(A,B)) -ea.bracket(ea.ad(A),ea.ad(B)) 
+
+   A = makeTraceless random(QQ^9,QQ^9);
+   B = random(3, E);
+   ea.bracket(A,B) + ea.bracket(B,A)
+   t1 =    ea.ad(ea.bracket(A,B));
+   t2 =  ea.bracket(ea.ad(A),ea.ad(B));
+   t1-t2   -- gives zero! 
+   A = makeTraceless random(QQ^9,QQ^9);
+   B = random(6, E);
+   ea.bracket(A,B) + ea.bracket(B,A)
+   ea.ad(ea.bracket(A,B)) - ea.bracket(ea.ad(A),ea.ad(B)) -- gives zero!
+   A = random(3, E);
+   B = random(6, E);
+   ea.bracket(A,B) + ea.bracket(B,A) 
+   t1 =    ea.ad(ea.bracket(A,B));
+   t2 =  ea.bracket(ea.ad(A),ea.ad(B)); 
+   rank(t1-t2) -- gives zero!
+   A = makeTraceless random(QQ^9,QQ^9)
+   pt = random(3, E);
+   ea.bracket(A, ea.star(pt )) + ea.star ea.bracket(transpose A, pt) -- checks equations 2.5 and 2.6 from Vinberg-Elashvili
+   pt = E_0*E_1*E_2; tmp  = ea.bracket(pt, ea.star(pt)) 
+   ea.bracket(tmp, pt) 
+
