@@ -1,4 +1,4 @@
-# ExteriorExtensions.m2
+# ExteriorExtensions
 A package for Macaulay2 that constructs extensions of Lie algebras via exterior algebras
 
 This package builds a graded algebra that equivariantly extends the Lie
