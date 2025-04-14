@@ -5,11 +5,7 @@ newPackage(
     Date => "December 18, 2023",
     Authors => {
 	{Name => "Luke Oeding", Email => "oeding@auburn.edu", HomePage => "http://webhome.auburn.edu/~lao0004/"}},
-    Headline => "Builds a graded algebra that equivariantly extends the Lie
-    algebra sl_n via the non-zero graded piece of the exterior algebra by
-    defining the bracket products. Constructs matrix representations of
-    adjoint operators. Computes ranks of blocks coming from the grading.",
-    Keywords => {"Lie Algebras, Jordan Decomposition, Tensor invariants"},
+    Headline => "Builds a graded algebra that equivariantly extends a Lie algebra",
     DebuggingMode => true
     )
 export {
