@@ -72,27 +72,33 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
   exteriorAlg := KK[e_0..e_(nvars-1), SkewCommutative => true];
   h := local h;
   E := local E;
+  --- make the Lie algebra in variables
   LieAlg := KK[h_1..h_(nvars -1), 
       (flatten for i to nvars -1 list for j from i+1 to nvars -1 list E_{i, j}), 
       (flatten for i to nvars -1 list for j from i+1 to nvars -1 list E_{j, i})]; -- a copy of sl_n = a_0
   extensionAlg.LieAlgebra = LieAlg;
+  -- store some properties of the Lie algebra:
   edim := binomial(nvars, pow); -- the dimension of a_1
   delta := (basis(nvars, exteriorAlg))_(0, 0); -- the volume form
+  -- some properties of the appendage we're adding:
   basis1E := gens exteriorAlg;
+  -- we need some helper functions to help compute the brackets later:
   setComplement:= (I, n) -> toList(set(0..(n-1)) - set I);
   indexStar := I -> det id_(ZZ^nvars)_(flatten {I, setComplement(I, nvars)});
   HodgeStar2function:= (IN) -> sum(subsets(nvars, first degree IN), aa -> contract(product(aa, i-> exteriorAlg_i), IN)*(indexStar aa)*product(setComplement(aa, nvars), i-> exteriorAlg_i));
   extensionAlg.HodgeStar = HodgeStar2function;
+  --- make the Lie algebra in a preferred basis. We start with the Cartan, then the raising and lowering operators.
   lDim := nvars^2-1; -- the dimension of sl_n
   basisCartanSln := apply(nvars-1, i-> diagonalMatrix ( apply(i, k-> 0_KK)|{1_KK, -1}|apply(nvars-i-2, k-> 0_KK))); -- there is an extra (-1)^i
+  -- nilpotent raising operators:
   basisN1 := flatten for i to nvars -1 list for j from i+1 to nvars -1 list (
     zm := mutableMatrix apply(nvars, j-> apply(nvars, i-> 0));
     tmp := zm;
     tmp_(i, j)=1;
     matrix tmp
     );
-  basisN2 := transpose\ basisN1;
-  basisG0 := basisCartanSln|basisN1|basisN2;
+  basisN2 := transpose\ basisN1; -- nilportent lowering operators
+  basisG0 := basisCartanSln|basisN1|basisN2; -- the entire Lie algebra:
   grade  := sub(nvars/gcd(nvars, pow), ZZ); -- the algebra is Z_m graded, this finds m
   basisG := new HashTable from {0=> basisG0}|apply(grade-1, i->
      (i+1)=> flatten entries basis(((i+1)*pow)%nvars, exteriorAlg)); -- makes a list of all the bases of the grade pieces
@@ -100,9 +106,11 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
   -- function to convert from the degree of the input to the grading on the algebra.
   findGrade2 := elt -> (if class elt === Matrix then (return 0) else for i from 1 to grade-1 do if degree elt === degree (first basisG#i) then return i);
   extensionAlg.findGrade = findGrade2;
+  -- I will need this matrix to solve for the expression in a basis of the result of a bracket. Used in the function matrix2LieAlg2:
   Qmat := transpose ( ( matrix apply(nvars-1, i-> getDiagonal( basisCartanSln_i)) )_(toList(0..nvars-2)));
   -- inverting this submatrix works because we only need to make the change of basis on traceless matrices
   genMatSln := sum(lDim, i -> sub(basisG0#i, LieAlg)*LieAlg_i); -- a generic matrix in sln
+  -- convert matrix representatives of  Lie algebra elements to expressions in variables:
   matrix2LieAlg2 := mat -> (
     Mat := sub(mat, LieAlg);
     use LieAlg;
@@ -110,6 +118,7 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
      (transpose( Qmat^(-1)*transpose matrix{(getDiagonal Mat)_(toList(0..nvars-2))})*transpose((basis(1, LieAlg))_{0..nvars-2}))_(0, 0)
   );
   extensionAlg.matrix2LieAlg = matrix2LieAlg2;
+  -- convert Lie algebra elements (in variables) to matrix representatives:
   LieAlg2Matrix2 := lform -> sum(flatten entries basis(1, LieAlg), xx -> contract(xx, lform)*contract(xx, genMatSln));
   extensionAlg.LieAlg2Matrix = LieAlg2Matrix2;
   ------------------------------------------------------------
@@ -120,10 +129,9 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
     sum(nvars, i-> sub(T, basis1E_i=>s_i)) +(-nvars+(degree T)_0)*T );
   bracketExtExt := (t1, t2) -> (t1*t2);
   bracketExtExtDual := (u, us) -> makeTraceless(
-    -diff(transpose diff(matrix{ basis1E}, u), diff(matrix{ basis1E}, HodgeStar2function us)) ); -- put an extra scalar here for the 2, 4 case ... see if it works for the others
--- took out transpose?
+    -diff(transpose diff(matrix{ basis1E}, u), diff(matrix{ basis1E}, HodgeStar2function us)) ); 
   bracketExtDualExt := (us, u) -> (-1)*transpose makeTraceless(
-    -diff(transpose diff(matrix{ basis1E}, HodgeStar2function us), diff(matrix{ basis1E}, u))); -- put an extra scalar here for the 2, 4 case ... see if it works for the others
+    -diff(transpose diff(matrix{ basis1E}, HodgeStar2function us), diff(matrix{ basis1E}, u))); 
   bracketExtDualExtDual := (t1, t2) -> HodgeStar2function( (HodgeStar2function t1)*(HodgeStar2function t2)); 
   ------------------------------------------------------------
   ----- put all brackets in one method
@@ -140,6 +148,10 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
     if (degree S)#0 >nvars/2 or (degree T)#0 >nvars/2 then return bracketExtDualExtDual(S, T);
   );
   extensionAlg.bracket = bracket2;
+  ------------------------------------------------------------
+  ----- Making functions attached to the exteriorExtension:
+  ----- Functions that are exported are documented in the doc files
+  ------------------------------------------------------------  
   --- make the adjoint operator Ad_T(x) = [T, x] for elements in the exterior Algebra
   -- Input:
   -- an element T of the exteriorAlgebra (or a matrix mat)
@@ -178,7 +190,7 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
   -- Input:
   -- matrix mat
   -- Output:
-  -- list of powerRanks of mat until they stabilize
+  -- list of powerRanks of matrix up to the dimension of the algebra
   powerRanks2 := mat -> (
     rtmp := 0;  tt := mat;
     {rank tt}|for i from 2 to nvars^2 + edim-1 list( tt = tt*mat;
@@ -210,11 +222,11 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
   -- Output:
   -- table of values of traces of powers of mat until it stabilizes
   powerTraces2 := mat -> ( rtmp := 0; tt := mat; tmp := rank tt;
-    print(netList ({{toString("power"), toString("trace"), toString("rank")}}));
-    print(netList( {{1}|{trace(tt)}| {tmp}}));
+    NL := {{toString("power"), toString("trace"), toString("rank")}};
+    NL = NL|( {{1}|{trace(tt)}| {tmp}});
     for i from 2 to nvars^2 + 2*edim-1 do( tt = tt*mat; tmp:=rank(tt);
-  	 if tmp!=0 then print(netList ({{i}|{trace(tt)}|{tmp}})) else break);
-     );
+  	 if tmp!=0 then NL = NL| ({{i}|{trace(tt)}|{tmp}}) else break);
+    netList NL );
   extensionAlg.powerTraces = powerTraces2;
    -- Input:
    -- null
@@ -578,7 +590,15 @@ Description
     ea.powerTraces A
 
   Text
-    The list outputs the trace of each power until the power ranks stabilize. Thes are invariants of the element x in ad(x).
+    The list outputs the trace of each power until the power ranks stabilize, or until the power is equal to the dimension of the algebra. Thes are invariants of the element x in ad(x).
+
+  Example
+    ea = exteriorExtension(3, 9, QQ);
+    E = ea.appendage
+    A = ea.ad(E_0*E_1*E_2 + E_3*E_4*E_5 + E_6*E_7*E_8);
+    ea.powerTraces A  
+  Text
+    The list could be quite long, as this example shows.    
 ///
 
 doc ///
@@ -780,6 +800,14 @@ Description
 ///
 
 end
+--------------------------------------------------------------------------------
+-- Examples
+--------------------------------------------------------------------------------
+
+restart
+uninstallPackage("ExteriorExtensions")
+installPackage"ExteriorExtensions"
+
 restart
 loadPackage"ExteriorExtensions"
 viewHelp"ExteriorExtensions"
@@ -832,7 +860,7 @@ K - transpose K -- symmetric
 rank K  -- non-degenerate
 kev = toList eigenvalues K
 #kev
-time stm0 =  for xx in  ea48.bases#0 list ea48.ad(xx);
+time stm0 =  for xx in  ea48.bases#0 list ea48.ad(xx);  
 time stm1 =  for xx in  ea48.bases#1 list ea48.ad(xx);
 unique apply(stm0, xx -> source xx)
 unique apply(stm0, xx -> target xx)
@@ -902,16 +930,16 @@ time K = ea48.KillingMatrix()
 rank K
 
 restart
-uninstallPackage("ExteriorExtensions")
-installPackage"ExteriorExtensions"
-restart
 loadPackage"ExteriorExtensions"
+
 viewHelp ExteriorExtensions
 ea = exteriorExtension(2,4); 
+keys ea
 ea.bracket(first ea.bases#0, ea.bases#1#1)
 ea.ad(first ea.bases#1)
 ea.HodgeStar first ea.bases#1
-
+ea.powerTraces(ea.ad(first ea.bases#1 + last ea.bases#1))
+ea#LieAlgebra
 
 extensionAlg = exteriorExtension(3, 6, e, QQ);
     gens extensionAlg.LieAlgebra
@@ -946,3 +974,23 @@ peek exteriorExtension
    pt = E_0*E_1*E_2; tmp  = ea.bracket(pt, ea.HodgeStar(pt)) 
    ea.bracket(tmp, pt) 
 
+
+
+restart
+uninstallPackage("ExteriorExtensions")
+installPackage"ExteriorExtensions"
+restart
+loadPackage"ExteriorExtensions"
+
+ea = exteriorExtension(3,9, ZZ/101);
+keys ea
+ea.bracket(first ea.bases#0, ea.bases#1#1)
+ea.ad(first ea.bases#1)
+ea.HodgeStar first ea.bases#1
+ea.powerTraces(ea.ad(first ea.bases#1 + last ea.bases#1))
+ea#LieAlgebra
+
+    ea = exteriorExtension(3, 9, ZZ/101);
+    E = ea.appendage
+    A = ea.ad(E_0*E_1*E_2 + E_3*E_4*E_5 + E_6*E_7*E_8);
+    ea.powerTraces A  
