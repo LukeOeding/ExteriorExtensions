@@ -2,7 +2,7 @@
 newPackage(
     "ExteriorExtensions", 
     Version => "1.0", 
-    Date => "April 22, 2025", 
+    Date => "April 23, 2025", 
     Authors => {
 	{Name => "Luke Oeding", Email => "oeding@auburn.edu", HomePage => "http://webhome.auburn.edu/~lao0004/"}}, 
     Headline => "Builds an algebra extending an exterior algebra", 
@@ -28,6 +28,7 @@ export {
 "getBlock", 
 "blockPowerRanks", 
 "prettyBlockPowerRanks", 
+"structureTensor",
 "KillingMatrix"}
 --------------------------------------------------------------------------------
 -- CODE
@@ -55,13 +56,13 @@ ExteriorExtension = new Type of MutableHashTable;
 -- Output:
 -- no output - defines global variables and functions for the relevant rings, and the bracket operations
 -- global mutableExports defined: exteriorAlgebra, HodgeStar, grade, basisG, bracket, Ad, powerRanks, powerTraces, getBlock, blockPowerRanks, prettyBlockPowerRanks, structureTensor, structureTensorMatrices, KillingMatrix
-exteriorExtension = method()
+exteriorExtension = method();
 --- The user just picks the first exterior module to add - the exterior power pow, and the number of variables nvars, the symbol e and the field QQ are chosen by default.
-exteriorExtension (ZZ, ZZ) := (pow, nvars) -> (e:=local e; exteriorExtension(pow, nvars, e, QQ))
+exteriorExtension (ZZ, ZZ) := (pow, nvars) -> (e:=local e; exteriorExtension(pow, nvars, e, QQ));
 -- here the user picks their own ring KK, and we've tested  fraction fields, finite field extensions, rational numbers and finite fields, but do not currently expect this to function properly over RR or CC.
-exteriorExtension (ZZ, ZZ, Ring) := (pow, nvars, KK) -> (e:=local e;  exteriorExtension(pow, nvars, e, KK)) 
+exteriorExtension (ZZ, ZZ, Ring) := (pow, nvars, KK) -> (e:=local e;  exteriorExtension(pow, nvars, e, KK));
 -- the user may provide their own symbol
-exteriorExtension (ZZ, ZZ, Symbol) := (pow, nvars, e) -> exteriorExtension(pow, nvars, e, QQ)
+exteriorExtension (ZZ, ZZ, Symbol) := (pow, nvars, e) -> exteriorExtension(pow, nvars, e, QQ);
 --- the user may provide their own symbol and ground ring.
 exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
   if instance(KK, InexactFieldFamily) or instance(KK, InexactField) then error "inexact arithmetic not supported internally.";
@@ -70,6 +71,7 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
   --- setting up the exterior algebra and some of its properties
   ----------------------------------------------------------------------------------------------------------------
   exteriorAlg := KK[e_0..e_(nvars-1), SkewCommutative => true];
+  extensionAlg.appendage = exteriorAlg;
   h := local h;
   E := local E;
   --- make the Lie algebra in variables
@@ -228,30 +230,33 @@ exteriorExtension (ZZ, ZZ, Symbol, Ring) := (pow, nvars, e, KK) -> (
   	 if tmp!=0 then NL = NL| ({{i}|{trace(tt)}|{tmp}}) else break);
     netList NL );
   extensionAlg.powerTraces = powerTraces2;
-   -- Input:
-   -- null
-   -- Output:
-   -- the structureTensor of the algebra -- may take a long time.
- structureTensor := () -> apply(flatten apply(grade, i-> basisG#i), xx-> entries Ad(xx));
- -- Input:
- -- null
- -- Output:
- -- the slices of the structureTensor of the algebra -- may take a long time.
- structureTensorMatrices := () -> for xx in flatten apply(grade, i-> basisG#i) list Ad(xx);
- -- Input:
- -- null
- -- Output:
- -- the Killing matrix of the algebra (traces of brackets of all basis elements) -- may take a long time.
- kmat := () -> (stm := structureTensorMatrices(); matrix(apply(stm, xx -> apply(stm, yy -> trace(xx*yy)))) );
- extensionAlg.KillingMatrix = kmat;
- extensionAlg.appendage = exteriorAlg;
- extensionAlg
+  extensionAlg
  -- output everything:
  --(exteriorAlgebra, basisG, grade, findGrade, HodgeStar, bracket, Ad, powerRanks, powerTraces, getBlock, 
---  blockPowerRanks, prettyBlockPowerRanks, structureTensor, structureTensorMatrices, 
---   KillingMatrix)
+--  blockPowerRanks, prettyBlockPowerRanks, structureTensor)
 );
 
+structureTensor = method();
+structureTensor (ExteriorExtension) := ea -> ( 
+  -- Input: ExteriorExtension
+   -- Output:
+   -- the structureTensor of the algebra -- may take a long time.
+B := apply(flatten apply(#ea.bases, i-> ea.bases#i), xx-> entries ea.ad(xx)); -- this could be parallelized, but it might not be faster.
+bTmp := length B;
+new HashTable from flatten flatten for k to bTmp-1 list for j to bTmp-1 list for i to bTmp-1 list if B#i#j#k !=0 then (i,j,k)=>B#i#j#k else continue 
+)
+
+KillingMatrix = method();
+KillingMatrix (ExteriorExtension) := ea -> (
+  basisG:=ea.bases;
+  grade:=#basisG;
+ -- Input: ExteriorExtension
+ -- Output: the Killing Matrix
+ -- the Killing matrix of the algebra (traces of brackets of all basis elements) -- may take a long time.
+ stm := for xx in flatten apply(grade, i-> basisG#i) list ea.ad(xx); -- serial way
+ --stm := parallelApply(flatten apply(grade, i-> basisG#i), xx-> ea.ad(xx)); -- parallel way to compute this
+ matrix(apply(stm, xx -> apply(stm, yy -> trace(xx*yy)))) 
+)
 
 beginDocumentation()
 
@@ -297,6 +302,7 @@ Subnodes
   getBlock
   blockPowerRanks
   prettyBlockPowerRanks
+  structureTensor
   KillingMatrix
   LieAlg2Matrix
   matrix2LieAlg
@@ -329,9 +335,8 @@ Outputs
 Consequences
   Item
     Sets the value for several symbols and functions attached to the ExteriorExtension:
-    "appendage", "findGrade", "HodgeStar", "bases", "bracket", "Ad", "powerRanks", "powerTraces", 
-    "getBlock", "blockPowerRanks", "prettyBlockPowerRanks", "structureTensor", "structureTensorMatrices", 
-      "KillingMatrix", "makeTraceless"
+    "appendage", "findGrade", "HodgeStar", "bases", "bracket", "ad", "powerRanks", "powerTraces", 
+    "getBlock", "blockPowerRanks", "prettyBlockPowerRanks",
 
 Description
   Text
@@ -372,7 +377,7 @@ Description
 
   Example
     printWidth =200;
-    K = ea24.KillingMatrix()
+    K = KillingMatrix ea24
     rank K
   Text
     The Killing matrix is \(21 \times 21\) and non-degenerate. The only possibility is \(\mathfrak{sp}_6\).
@@ -603,6 +608,27 @@ Description
 
 doc ///
 Key
+  structureTensor
+
+Headline
+  Constructs the structureTensor of the ExteriorExtension
+
+Description
+  Text
+    The structure tensor of an algebra is the representative of the bilinear product as a hypermatrix.
+    The matrices constructed by this can get very large, and take a long time to compute. The output can be very large, so we return a hashTable with only the non-zero values.
+
+  Example
+    printWidth = 450;
+    ea = exteriorExtension(3, 6, QQ);
+    B = structureTensor ea
+    
+  Text
+    This tensor B can be used to compute any product of basis elements -- the number in \(B(i,j,k)\) is the coefficient on \(e_k\) of the product of \(e_i\) and \(e_j\).
+///
+
+doc ///
+Key
   KillingMatrix
 
 Headline
@@ -610,12 +636,13 @@ Headline
 
 Description
   Text
-    The matrices constructed by this can get very large, and take a long time to compute. So we store this object as a function that we call with no input so that we don't compute it if it is not required.
+    The Killling matrix is constructed by taking the adjoint of every basis vector of the algebra, then computing the trace of each bracket between them and storing the results in a matrix. 
+    The matrices constructed by this can get very large, and take a long time to compute.
 
   Example
-    PrintWidth = 450;
+    printWidth = 450;
     ea = exteriorExtension(3, 6, QQ);
-    K = ea.KillingMatrix()
+    K = KillingMatrix ea
     rank K
 
   Text
@@ -852,7 +879,7 @@ ea48 = exteriorExtension(4, 8, e, QQ);
 
     ea48.bracket(A, b) + ea48.bracket(b, A)
     ea48.ad(ea48.bracket(A, b)) - ea48.bracket(ea48.ad(A), ea48.ad(b))
-time K = ea48.KillingMatrix()
+time K = KillingMatrix ea48
 rank K
 
 matrix apply(7, i-> apply(7, j-> 2*K_(i, j)/K_(j, j)))
@@ -926,13 +953,16 @@ L0 = stm0_(toList (0..6));
 
 L0 = stm0_(toList (0..7));
 netList apply( L0, xx-> apply( L0, yy-> ea48.bracket(xx, yy) == 0 ))
-time K = ea48.KillingMatrix()
+time K = KillingMatrix ea48
 rank K
 
 restart
 loadPackage"ExteriorExtensions"
 ea = exteriorExtension(2,4); 
 keys ea
+
+KillingMatrix ea
+T = structureTensor ea
 ea.bracket(first ea.bases#0, ea.bases#1#1)
 ea.ad(first ea.bases#1)
 ea.HodgeStar first ea.bases#1
@@ -971,3 +1001,11 @@ peek exteriorExtension
    ea.bracket(A, ea.HodgeStar(pt )) + ea.HodgeStar ea.bracket(transpose A, pt) -- checks equations 2.5 and 2.6 from Vinberg-Elashvili
    pt = E_0*E_1*E_2; tmp  = ea.bracket(pt, ea.HodgeStar(pt)) 
    ea.bracket(tmp, pt) 
+
+
+restart
+loadPackage"ExteriorExtensions"
+viewHelp ExteriorExtensions
+ ea = exteriorExtension(3, 6, QQ);
+B = structureTensor(ea);
+#keys B
