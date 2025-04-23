@@ -810,17 +810,17 @@ installPackage"ExteriorExtensions"
 
 restart
 loadPackage"ExteriorExtensions"
-viewHelp"ExteriorExtensions"
 ea24 = exteriorExtension(2, 4, e, QQ)
 A = ea24.ad(e_0*e_1 + e_2*e_3)
-round\ toList eigenvalues A
-rank A
-
+ea24.prettyBlockPowerRanks A
+ea24.powerTraces A
+sort eigenvalues A
+(S,U,Vt) =SVD(sub(A, RR));
 B = ea24.ad(e_0*e_2 + e_1*e_3);
-0*ea24.bracket(A, B)== ea24.bracket(A, B)
+ea24.bracket(A, B) + ea24.bracket(B, A)
 
 ea24.bracket(A, ea24.ad(e_0*e_1))
- ea24.prettyBlockPowerRanks A
+ea24.prettyBlockPowerRanks A
 
 B = ea24.ad(e_0*e_2 + e_1*e_3);
 0*ea24.bracket(A, B)== ea24.bracket(A, B)
@@ -888,7 +888,7 @@ A0 = ea48.ad(a0);
 # for xx in eigenvalues A0 list if not round(abs(xx)) ==0 then xx else continue
 rank A0
 
--- for examples
+-- more examples
 restart
 loadPackage"ExteriorExtensions"
 ea48 = exteriorExtension(4, 8, e, QQ);
@@ -931,8 +931,6 @@ rank K
 
 restart
 loadPackage"ExteriorExtensions"
-
-viewHelp ExteriorExtensions
 ea = exteriorExtension(2,4); 
 keys ea
 ea.bracket(first ea.bases#0, ea.bases#1#1)
@@ -973,24 +971,3 @@ peek exteriorExtension
    ea.bracket(A, ea.HodgeStar(pt )) + ea.HodgeStar ea.bracket(transpose A, pt) -- checks equations 2.5 and 2.6 from Vinberg-Elashvili
    pt = E_0*E_1*E_2; tmp  = ea.bracket(pt, ea.HodgeStar(pt)) 
    ea.bracket(tmp, pt) 
-
-
-
-restart
-uninstallPackage("ExteriorExtensions")
-installPackage"ExteriorExtensions"
-restart
-loadPackage"ExteriorExtensions"
-
-ea = exteriorExtension(3,9, ZZ/101);
-keys ea
-ea.bracket(first ea.bases#0, ea.bases#1#1)
-ea.ad(first ea.bases#1)
-ea.HodgeStar first ea.bases#1
-ea.powerTraces(ea.ad(first ea.bases#1 + last ea.bases#1))
-ea#LieAlgebra
-
-    ea = exteriorExtension(3, 9, ZZ/101);
-    E = ea.appendage
-    A = ea.ad(E_0*E_1*E_2 + E_3*E_4*E_5 + E_6*E_7*E_8);
-    ea.powerTraces A  
