@@ -13,6 +13,7 @@ Then launch Macaulay M2 from the same directory.
 Then do this:
  
 `installPackage("ExteriorExtensions")
+
 viewHelp ExteriorExtensions` 
 
 The help documents give several basic examples to try out.
