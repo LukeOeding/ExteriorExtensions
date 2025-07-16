@@ -12,9 +12,9 @@ To interact with the package save the file somewhere on your machine.
 Then launch Macaulay M2 from the same directory. 
 Then do this:
  
-`installPackage("ExteriorExtensions")
+`installPackage("ExteriorExtensions")`
 
-viewHelp ExteriorExtensions` 
+`viewHelp ExteriorExtensions` 
 
 The help documents give several basic examples to try out.
 
