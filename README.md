@@ -18,3 +18,6 @@ The help documents give several basic examples to try out.
 
 Subsequent times when you start M2, do this (this doesn’t re-generate the examples).
 loadPackage ExteriorExtensions
+
+Details on the package can be found on the [arXiv https://arxiv.org/abs/2312.11368]
+This article was accepted for publication at JSAG July 2025.
